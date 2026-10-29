@@ -8,10 +8,9 @@
     skill: 'review-summary',
     facts: loading
       ? ''
-      : 'reviews count=' +
-        (tab === 'published' ? reviews.length : reputation?.reviewCount || 0) +
-        '; rating average=' +
-        (tab === 'published' ? publishedRating : reputation?.rating || 0),
+      : tab === 'published'
+        ? facts(reviews.length, publishedRating)
+        : facts(reputation?.reviewCount || 0, reputation?.rating || 0, reputation?.themes),
     prompts: ['Summarize these ratings', 'Explain this review sample'],
   }"
 >
@@ -77,7 +76,66 @@
     </nav>
     @if (tab === 'received') {
       <h2>{{ host ? 'What your guests are saying' : 'Your stays, through your hosts’ eyes' }}</h2>
-      <app-review-feed [reviews]="reputation?.reviews || []" [context]="true" />
+      @if (host) {
+        @if (responseError && !responseTarget) {
+          <p class="error-text" role="alert">{{ responseError }}</p>
+        }
+        @for (review of reputation?.reviews || []; track review.id) {
+          <section class="mb-4">
+            <app-review-feed [reviews]="[review]" [context]="true" />
+            @if (responseTarget === review.id) {
+              <form class="inset mt-3" (ngSubmit)="saveResponse(review)">
+                <label [for]="'response-' + review.id">Your public response</label>
+                <textarea
+                  [id]="'response-' + review.id"
+                  name="response"
+                  [(ngModel)]="responseBody"
+                  maxlength="1000"
+                  rows="3"
+                  [disabled]="saving"
+                  placeholder="Thank the guest or address their feedback. Everyone can read this."
+                ></textarea>
+                <p class="muted text-sm">
+                  {{ responseBody.length }}/1,000 characters · Shown under the review on the
+                  property page.
+                </p>
+                @if (responseError) {
+                  <p class="error-text" role="alert">{{ responseError }}</p>
+                }
+                <div class="review-actions">
+                  <button class="btn" type="submit" [disabled]="saving">
+                    {{ saving ? 'Publishing…' : 'Publish response' }}</button
+                  ><button
+                    class="btn secondary"
+                    type="button"
+                    [disabled]="saving"
+                    (click)="responseTarget = ''"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            } @else {
+              <div class="review-actions">
+                <button class="btn secondary" [disabled]="saving" (click)="startResponse(review)">
+                  {{ review.response ? 'Edit response' : 'Respond publicly' }}
+                </button>
+                @if (review.response) {
+                  <button
+                    class="btn secondary"
+                    [disabled]="saving"
+                    (click)="removeResponse(review)"
+                  >
+                    Remove response
+                  </button>
+                }
+              </div>
+            }
+          </section>
+        }
+      } @else {
+        <app-review-feed [reviews]="reputation?.reviews || []" [context]="true" />
+      }
       @if (!reputation?.reviewCount) {
         <p class="empty-review">
           {{

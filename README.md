@@ -98,6 +98,7 @@ Applied schema changes are versioned as follows:
 | V7        | Shared password credentials and session storage                                 |
 | V8        | Derive property rating/count from actual review records                         |
 | V9        | Two-way reviews, subject identity and positive/negative host tags               |
+| V10       | Public host responses to stay reviews                                           |
 
 The `dev` profile runs the original fixtures and an expanded [demo dataset](docs/seed-data.md) in one transaction. The expanded set adds 20 properties (18 published, one draft, one archived), 16 synthetic profiles, 68 reservations, 86 two-way reviews, conversations/messages, wishlists, owner blocks and nightly-price overrides. Stable IDs and `ON CONFLICT DO NOTHING` preserve existing records and first-insert dates on repeat startup. Completed stays include examples still eligible for review. All payment receipts are simulated. Property rating/count caches are recalculated from actual stay reviews.
 
@@ -134,7 +135,7 @@ Each member contributes one `AiSkill` implementation to the shared assistant reg
 | Aymen Hmani      | `listing-description`   | Draft a property description for explicit host review/application       |
 | Hadir Ghallabi   | `reservation-itinerary` | Suggest a trip itinerary from public destination/date facts             |
 | Rania Regai      | `host-summary`          | Explain aggregate occupancy and suggest calendar actions                |
-| Wassim Hamouda   | `review-summary`        | Summarize star statistics and acknowledge sample limits                 |
+| Wassim Hamouda   | `review-summary`        | Summarize star statistics and server-counted review themes              |
 | Kawther Lahneynè | `message-draft`         | Draft an arrival, checkout or property question; sending stays explicit |
 
 `GET /api/ai/skills` lists IDs, labels and owners. `POST /api/ai/assist` accepts `{ "skill": "listing-description", "context": "La Marsa, apartment, kitchen" }`. Responses include `mode` (`mock` or `live`), `skill`, `text`, `notice` and `reviewRequired`. AI does not execute a booking, publish a listing, change prices, assign stars or send a message.

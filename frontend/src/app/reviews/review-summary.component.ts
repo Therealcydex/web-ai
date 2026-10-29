@@ -2,6 +2,16 @@ import { Component, Input, OnChanges, inject } from '@angular/core';
 import { ApiService, errorMessage } from '../core/api.service';
 import { AiResponse } from '../core/models';
 import { AiMarkdownComponent } from '../shared/ai-markdown.component';
+import { ThemeCount } from './review-api.service';
+
+/** Aggregate-only AI context: counts, average and server-counted themes, never review text. */
+export function reviewFacts(count: number, rating: number, themes: ThemeCount[] = []) {
+  return [
+    `reviews count=${count}`,
+    `rating average=${Number(rating).toFixed(2)}`,
+    ...themes.flatMap((t) => [`${t.id} positive=${t.positive}`, `${t.id} negative=${t.negative}`]),
+  ].join('; ');
+}
 
 @Component({
   selector: 'app-review-summary',
@@ -10,7 +20,8 @@ import { AiMarkdownComponent } from '../shared/ai-markdown.component';
   template: `<section class="inset mt-4" aria-label="AI review summary">
     <strong>AI review summary</strong>
     <p class="muted text-sm">
-      A quick reading of these ratings. Read the individual reviews for the full story.
+      A quick reading of these ratings{{ themes.length ? ' and recurring themes' : '' }}. Read the
+      individual reviews for the full story.
     </p>
     <button class="btn secondary small mt-3" [disabled]="busy || !count" (click)="summarize()">
       {{ busy ? 'Summarizing…' : 'Summarize these reviews' }}
@@ -34,6 +45,7 @@ export class ReviewSummaryComponent implements OnChanges {
   private readonly api = inject(ApiService);
   @Input() count = 0;
   @Input() rating = 0;
+  @Input() themes: ThemeCount[] = [];
   @Input() scope = '';
   busy = false;
   error = '';
@@ -54,7 +66,7 @@ export class ReviewSummaryComponent implements OnChanges {
     try {
       const response = await this.api.assist(
         'review-summary',
-        `reviews count=${this.count}; rating average=${Number(this.rating).toFixed(2)}`,
+        reviewFacts(this.count, this.rating, this.themes),
       );
       if (version === this.version) this.response = response;
     } catch (e) {

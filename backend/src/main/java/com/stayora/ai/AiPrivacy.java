@@ -109,6 +109,19 @@ public class AiPrivacy {
           "bathrooms",
           "reviews count",
           "rating average");
+
+  /** Review theme counts computed server-side by the reviews module; never review text. */
+  private static final List<String> REVIEW_THEMES =
+      List.of(
+          "cleanliness",
+          "hospitality",
+          "communication",
+          "check-in",
+          "accuracy",
+          "comfort",
+          "location",
+          "value");
+
   private static final Pattern STAY_DATE =
       Pattern.compile(
           "(?i)(checkIn|checkOut|check-in|check-out)[\\\"\\s]*[:=]?[\\\"\\s]*(20\\d{2}-\\d{2}-\\d{2})");
@@ -131,7 +144,12 @@ public class AiPrivacy {
         result.add(fact);
     Matcher numbers = NUMBER.matcher(cleaned);
     while (numbers.find() && result.size() < 45) result.add(numbers.group());
-    for (String metric : METRICS) {
+    List<String> metrics = new ArrayList<>(METRICS);
+    for (String theme : REVIEW_THEMES) {
+      metrics.add(theme + " positive");
+      metrics.add(theme + " negative");
+    }
+    for (String metric : metrics) {
       Matcher value =
           Pattern.compile(
                   "(?i)(?<![a-z])"

@@ -41,4 +41,10 @@ class Review {
 
   @Column(name = "updated_at", nullable = false)
   Instant updatedAt;
+
+  @Column(columnDefinition = "text")
+  String response;
+
+  @Column(name = "response_at")
+  Instant responseAt;
 }

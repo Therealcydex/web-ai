@@ -26,6 +26,20 @@ describe('Shared review summaries', () => {
     );
     expect(component.response?.mode).toBe('mock');
   });
+  it('adds server-counted theme numbers without any review text', async () => {
+    component.count = 4;
+    component.rating = 4.25;
+    component.themes = [
+      { id: 'cleanliness', label: 'Cleanliness', positive: 3, negative: 1 },
+      { id: 'check-in', label: 'Check-in', positive: 0, negative: 2 },
+    ];
+    assist.and.resolveTo({ mode: 'mock', skill: 'review-summary', text: 'Mostly clean.' });
+    await component.summarize();
+    expect(assist).toHaveBeenCalledOnceWith(
+      'review-summary',
+      'reviews count=4; rating average=4.25; cleanliness positive=3; cleanliness negative=1; check-in positive=0; check-in negative=2',
+    );
+  });
   it('discards a late result after switching the reviewed subject', async () => {
     let resolve!: (response: AiResponse) => void;
     assist.and.returnValue(new Promise<AiResponse>((r) => (resolve = r)));

@@ -13,7 +13,7 @@ import {
 } from './review-api.service';
 import { ReviewFeedComponent } from './review-feed.component';
 import { ReputationComponent } from './reputation.component';
-import { ReviewSummaryComponent } from './review-summary.component';
+import { ReviewSummaryComponent, reviewFacts } from './review-summary.component';
 import { PageContextDirective } from '../shared/page-context.directive';
 
 @Component({
@@ -53,6 +53,10 @@ export class ReviewsComponent implements OnInit {
   body = '';
   saving = false;
   deleteTarget = '';
+  responseTarget = '';
+  responseBody = '';
+  responseError = '';
+  readonly facts = reviewFacts;
   get publishedRating() {
     return this.reviews.length
       ? this.reviews.reduce((sum, review) => sum + review.rating, 0) / this.reviews.length
@@ -106,6 +110,47 @@ export class ReviewsComponent implements OnInit {
     this.body = '';
     this.saveError = '';
     this.selectedTags = [];
+    this.responseTarget = '';
+    this.responseError = '';
+  }
+  startResponse(review: Review) {
+    this.responseTarget = review.id;
+    this.responseBody = review.response || '';
+    this.responseError = '';
+  }
+  async saveResponse(review: Review) {
+    if (this.saving) return;
+    const body = this.responseBody.trim();
+    if (body.length < 2 || body.length > 1000) {
+      this.responseError = 'Write a response between 2 and 1,000 characters.';
+      return;
+    }
+    await this.changeResponse(
+      () => this.api.respond(review.id, body),
+      'Your response is published under the review.',
+    );
+  }
+  async removeResponse(review: Review) {
+    if (this.saving) return;
+    await this.changeResponse(
+      () => this.api.deleteResponse(review.id),
+      'Your response has been removed.',
+    );
+  }
+  private async changeResponse(request: () => Promise<unknown>, success: string) {
+    this.saving = true;
+    this.responseError = '';
+    this.message = '';
+    try {
+      await request();
+      this.responseTarget = '';
+      this.message = success;
+      await this.load();
+    } catch (e) {
+      this.responseError = errorMessage(e);
+    } finally {
+      this.saving = false;
+    }
   }
   focusForm() {
     setTimeout(() => document.getElementById('review-form-title')?.focus());

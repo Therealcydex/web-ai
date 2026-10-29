@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
-import { Reputation, TagCount } from './review-api.service';
+import { Reputation, TagCount, ThemeCount } from './review-api.service';
 import { ReviewSummaryComponent } from './review-summary.component';
 
 @Component({
@@ -44,16 +44,44 @@ import { ReviewSummaryComponent } from './review-summary.component';
         }
       </div>
     }
+    @if (data.themes?.length) {
+      <p class="review-context mt-4">Themes in review text</p>
+      <div class="themes" aria-label="Review themes">
+        @for (theme of data.themes || []; track theme.id) {
+          <div class="theme-row">
+            <span>{{ theme.label }}</span>
+            <span
+              ><span class="theme-good" [attr.aria-label]="theme.positive + ' positive'"
+                >+{{ theme.positive }}</span
+              >
+              ·
+              <span class="theme-bad" [attr.aria-label]="theme.negative + ' negative'"
+                >−{{ theme.negative }}</span
+              ></span
+            >
+          </div>
+        }
+      </div>
+      <p class="muted text-xs mt-2">
+        Counted by keyword matching on review text and tags. Approximate; read the reviews.
+      </p>
+    }
     @if (!data.reviewCount) {
       <p class="muted">Ratings appear after a completed stay is reviewed.</p>
     }
-    <app-review-summary [count]="data.reviewCount" [rating]="data.rating" [scope]="scope" />
+    <app-review-summary
+      [count]="data.reviewCount"
+      [rating]="data.rating"
+      [themes]="data.themes || []"
+      [scope]="scope"
+    />
   `,
   styleUrl: './review-ui.css',
 })
 export class ReputationComponent {
   @Input({ required: true }) data!: Pick<Reputation, 'rating' | 'reviewCount' | 'reviews'> & {
     tags?: TagCount[];
+    themes?: ThemeCount[];
   };
   @Input() distribution = false;
   @Input() scope = '';

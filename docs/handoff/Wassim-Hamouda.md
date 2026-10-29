@@ -29,20 +29,22 @@ Cross-module calls use `ReservationService.get`, `trips`, `hostRequests` and lis
 
 ## APIs and screens
 
-| Method | Endpoint                        | Purpose                                                                                                                |
-| ------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/properties/{id}/reviews`  | Public published-property `rating`, `reviewCount`, `reviews`, aggregated `tags`; excludes host-written visitor reviews |
-| GET    | `/api/reviews/tags`             | Canonical positive/negative host tag catalog                                                                           |
-| GET    | `/api/reviews/eligible`         | Guest's completed stays without their `STAY` review                                                                    |
-| GET    | `/api/host/reviews/eligible`    | Owning host's completed stays without their `GUEST` review                                                             |
-| GET    | `/api/reviews/mine`             | Current account's authored reviews, for either role                                                                    |
-| GET    | `/api/reviews/received`         | Guest's received reputation and host-written reviews                                                                   |
-| GET    | `/api/host/reviews`             | Current host's all-time reputation and guest feedback                                                                  |
-| GET    | `/api/host/guests/{id}/reviews` | Guest reputation; requires a reservation with the requesting host                                                      |
-| POST   | `/api/reviews`                  | Guest creates `{reservationId, rating, body, tags?}`; 201                                                              |
-| POST   | `/api/host/reviews`             | Host creates visitor `{reservationId, rating, body}`; 201                                                              |
-| PUT    | `/api/reviews/{id}`             | Author updates `{rating, body, tags?}`                                                                                 |
-| DELETE | `/api/reviews/{id}`             | Author deletes their review; 204                                                                                       |
+| Method | Endpoint                          | Purpose                                                                                                                |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/properties/{id}/reviews`    | Public published-property `rating`, `reviewCount`, `reviews`, aggregated `tags`; excludes host-written visitor reviews |
+| GET    | `/api/reviews/tags`               | Canonical positive/negative host tag catalog                                                                           |
+| GET    | `/api/reviews/eligible`           | Guest's completed stays without their `STAY` review                                                                    |
+| GET    | `/api/host/reviews/eligible`      | Owning host's completed stays without their `GUEST` review                                                             |
+| GET    | `/api/reviews/mine`               | Current account's authored reviews, for either role                                                                    |
+| GET    | `/api/reviews/received`           | Guest's received reputation and host-written reviews                                                                   |
+| GET    | `/api/host/reviews`               | Current host's all-time reputation and guest feedback                                                                  |
+| GET    | `/api/host/guests/{id}/reviews`   | Guest reputation; requires a reservation with the requesting host                                                      |
+| POST   | `/api/reviews`                    | Guest creates `{reservationId, rating, body, tags?}`; 201                                                              |
+| POST   | `/api/host/reviews`               | Host creates visitor `{reservationId, rating, body}`; 201                                                              |
+| PUT    | `/api/reviews/{id}`               | Author updates `{rating, body, tags?}`                                                                                 |
+| DELETE | `/api/reviews/{id}`               | Author deletes their review; 204                                                                                       |
+| PUT    | `/api/host/reviews/{id}/response` | Reviewed host publishes or edits a public response `{body}` (2–1,000 characters) to a `STAY` review                    |
+| DELETE | `/api/host/reviews/{id}/response` | Reviewed host removes their public response; 204                                                                       |
 
 `Reputation` returns `rating`, `reviewCount`, `positiveReviews` (4–5 star count), aggregated `tags` (`id`, `label`, `sentiment`, `count`) and `reviews`. Review DTOs include `direction`, `subjectId`, `subjectName`, `propertyTitle`, tag ID array `tags` and display catalog entries `tagDetails`, alongside the original fields. Omitted tags become an empty selection, including on PUT. No pagination is implemented.
 
@@ -54,7 +56,7 @@ Property details embed a rating/tag summary and recent reviews with a full-revie
 
 ## AI integration presentation
 
-The contributed `ReviewAiSkill` implements the shared `AiSkill` interface. Its identifier is `review-summary`, and its owner is Wassim Hamouda. The property review page sends only `count=N; average=X.XX` to `/api/ai/assist`. It does not send raw review text, guest names, email addresses, or reservation identifiers.
+The contributed `ReviewAiSkill` implements the shared `AiSkill` interface. Its identifier is `review-summary`, and its owner is Wassim Hamouda. The property review page sends only the review count, average and server-counted theme numbers to `/api/ai/assist` (see the review themes section below). It does not send raw review text, guest names, email addresses, or reservation identifiers.
 
 The system prompt tells the model to summarize aggregate accommodation star counts, avoid invented experiences or quotations, acknowledge limited samples, treat context as data, and require human review. The shared provider supports live execution when configured and deterministic mock fallback when unavailable. The UI labels the returned mode and asks the user to check the summary before sharing. The assistant never rewrites the saved review or decides its star rating.
 
@@ -94,7 +96,19 @@ Only synthetic development data is used in this sequence. Completed demo reserva
 
 ## Honest limits and next improvements
 
-Moderation queues, reporting abusive reviews, host public responses, image uploads, pagination, and review email notifications are not implemented. Long-term scale would move average/count aggregation to a repository aggregate query while retaining the same property lock and transaction boundary. Provider-generated output still requires human verification.
+Moderation queues, reporting abusive reviews, image uploads, pagination, and review email notifications are not implemented. Long-term scale would move average/count aggregation to a repository aggregate query while retaining the same property lock and transaction boundary. Provider-generated output still requires human verification.
+
+## Host public responses (29 October 2026)
+
+`V10__host_review_responses.sql` additively adds nullable `response` and `response_at` columns. Constraints allow responses only on `STAY` reviews, require both columns together, and limit length to 2–1,000 characters. Only the host a stay review is about (`subject_id`) may respond. Guests, other hosts and responses to host-written `GUEST` reviews return 403. Unknown reviews return 404. The mutation takes the shared property lock but never recalculates ratings. A guest editing their review keeps the response; deleting the review removes it. Review DTOs now include `response` and `responseAt`. The host hub's Guest feedback tab offers Respond publicly / Edit response / Remove response. Every review feed shows the response under the guest's text.
+
+## Review themes and AI summary (29 October 2026)
+
+`ReviewThemes` counts eight themes (cleanliness, host welcome, communication, check-in, accuracy, comfort, location, value) in review text on the server. It uses fixed keyword lists, clause splitting at sentence ends and "but/though", simple negation ("not clean") and suggestion markers ("…would help"). An explicit host tag overrides the text for its category. `PropertyReviews` and `Reputation` now include `themes`: `{id, label, positive, negative}` counts of reviews, where a mixed review counts on both sides. The reputation panel lists them as approximate keyword counts.
+
+The AI summary context is now `reviews count=N; rating average=X; <theme> positive=N; <theme> negative=N…`. `AiPrivacy` keeps only these allow-listed theme keys. Review text, names and IDs still never leave the server. The offline mock names praised themes and concerns. Present this honestly: themes are keyword matches, not semantic understanding, and can miss sarcasm or unusual wording.
+
+Tests: `ReviewThemesTest` (seeded sentences, negation, mixed clauses, tag override, privacy filter) and four new integration tests (response permissions/validation/persistence, GUEST-review rejection, theme counts on property and host views, mock theme output).
 
 ## Shared AI provider setup
 

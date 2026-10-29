@@ -31,6 +31,15 @@ import { Review } from './review-api.service';
             >
           }
         </div>
+        @if (review.response) {
+          <aside class="review-response" aria-label="Host response">
+            <p class="review-context">
+              Response from {{ review.subjectName || 'the host' }} ·
+              {{ review.responseAt | date: 'MMM yyyy' }}
+            </p>
+            <p class="review-text">{{ review.response }}</p>
+          </aside>
+        }
         @if (context) {
           <p class="review-context mt-3">{{ review.propertyTitle }}</p>
         }

@@ -18,6 +18,14 @@ export interface Review {
   propertyTitle?: string;
   tags?: string[];
   tagDetails?: ReviewTag[];
+  response?: string | null;
+  responseAt?: string | null;
+}
+export interface ThemeCount {
+  id: string;
+  label: string;
+  positive: number;
+  negative: number;
 }
 export interface ReviewTag {
   id: string;
@@ -37,6 +45,7 @@ export interface Reputation {
   positiveReviews: number;
   tags: TagCount[];
   reviews: Review[];
+  themes?: ThemeCount[];
 }
 export interface PropertyReviews {
   propertyId: string;
@@ -44,6 +53,7 @@ export interface PropertyReviews {
   reviewCount: number;
   reviews: Review[];
   tags?: TagCount[];
+  themes?: ThemeCount[];
 }
 export interface EligibleStay {
   reservationId: string;
@@ -96,5 +106,11 @@ export class ReviewApiService {
   }
   delete(id: string) {
     return firstValueFrom(this.http.delete<void>(`/api/reviews/${id}`));
+  }
+  respond(id: string, body: string) {
+    return firstValueFrom(this.http.put<Review>(`/api/host/reviews/${id}/response`, { body }));
+  }
+  deleteResponse(id: string) {
+    return firstValueFrom(this.http.delete<void>(`/api/host/reviews/${id}/response`));
   }
 }

@@ -7,6 +7,7 @@ import { FeedbackComponent } from '../shared/feedback.component';
 import { PropertyReviews, ReviewApiService } from './review-api.service';
 import { ReviewFeedComponent } from './review-feed.component';
 import { ReputationComponent } from './reputation.component';
+import { reviewFacts } from './review-summary.component';
 import { IdentityService } from '../accounts/identity.service';
 
 @Component({
@@ -25,7 +26,7 @@ import { IdentityService } from '../accounts/identity.service';
       [appPageContext]="{
         label: 'Property reviews',
         skill: 'review-summary',
-        facts: data ? 'reviews count=' + data.reviewCount + '; rating average=' + data.rating : '',
+        facts: data ? facts(data.reviewCount, data.rating, data.themes) : '',
         prompts: ['Summarize these reviews', 'Explain this rating sample'],
       }"
       id="main"
@@ -56,6 +57,7 @@ import { IdentityService } from '../accounts/identity.service';
 })
 export class PropertyReviewsComponent implements OnInit {
   readonly identity = inject(IdentityService);
+  readonly facts = reviewFacts;
   private readonly route = inject(ActivatedRoute);
   private readonly reviews = inject(ReviewApiService);
   readonly propertyId =

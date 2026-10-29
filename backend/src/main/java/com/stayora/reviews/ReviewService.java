@@ -49,7 +49,8 @@ public class ReviewService {
         average(rows),
         rows.size(),
         rows.stream().map(this::view).toList(),
-        tagCounts(rows));
+        tagCounts(rows),
+        ReviewThemes.count(rows));
   }
 
   public List<ReviewView> mine() {
@@ -147,6 +148,37 @@ public class ReviewService {
     if ("STAY".equals(review.direction)) refreshRating(review.propertyId);
   }
 
+  @Transactional
+  public ReviewView respond(UUID id, HostResponse request) {
+    Review review = answerable(id);
+    String body = request.body() == null ? "" : request.body().trim();
+    if (body.length() < 2 || body.length() > 1000)
+      throw ApiException.badRequest("Write a response between 2 and 1,000 characters.");
+    review.response = body;
+    review.responseAt = Instant.now();
+    reviews.saveAndFlush(review);
+    return view(review);
+  }
+
+  @Transactional
+  public void deleteResponse(UUID id) {
+    Review review = answerable(id);
+    review.response = null;
+    review.responseAt = null;
+    reviews.saveAndFlush(review);
+  }
+
+  /** Only the host a stay review is about may answer it; the guest's text stays untouched. */
+  private Review answerable(UUID id) {
+    UUID host = accounts.requireRole("HOST").id();
+    Review review = reviews.findById(id).orElseThrow(ApiException::notFound);
+    listings.lock(review.propertyId);
+    refreshLockedReview(review);
+    if (!"STAY".equals(review.direction) || !review.subjectId.equals(host))
+      throw ApiException.forbidden();
+    return review;
+  }
+
   private Review owned(UUID id) {
     UUID author = accounts.current().id();
     Review review = reviews.findById(id).orElseThrow(ApiException::notFound);
@@ -196,7 +228,9 @@ public class ReviewService {
         accounts.get(r.subjectId).name(),
         listings.get(r.propertyId).title(),
         tagsOf(r),
-        TAGS.stream().filter(t -> tagsOf(r).contains(t.id())).toList());
+        TAGS.stream().filter(t -> tagsOf(r).contains(t.id())).toList(),
+        r.response,
+        r.responseAt);
   }
 
   public Reputation hostPerformance() {
@@ -221,7 +255,8 @@ public class ReviewService {
         rows.size(),
         rows.stream().filter(r -> r.rating >= 4).count(),
         tagCounts(rows),
-        rows.stream().map(this::view).toList());
+        rows.stream().map(this::view).toList(),
+        ReviewThemes.count(rows));
   }
 
   public static final List<ReviewTag> TAGS =
@@ -299,25 +334,34 @@ public class ReviewService {
       String subjectName,
       String propertyTitle,
       List<String> tags,
-      List<ReviewTag> tagDetails) {}
+      List<ReviewTag> tagDetails,
+      String response,
+      Instant responseAt) {}
+
+  public record HostResponse(@NotBlank @Size(min = 2, max = 1000) String body) {}
 
   public record PropertyReviews(
       UUID propertyId,
       BigDecimal rating,
       int reviewCount,
       List<ReviewView> reviews,
-      List<TagCount> tags) {}
+      List<TagCount> tags,
+      List<ThemeCount> themes) {}
 
   public record ReviewTag(String id, String label, String sentiment, String category) {}
 
   public record TagCount(String id, String label, String sentiment, long count) {}
+
+  /** Reviews whose text or tags mention a theme positively and/or negatively. */
+  public record ThemeCount(String id, String label, long positive, long negative) {}
 
   public record Reputation(
       BigDecimal rating,
       int reviewCount,
       long positiveReviews,
       List<TagCount> tags,
-      List<ReviewView> reviews) {}
+      List<ReviewView> reviews,
+      List<ThemeCount> themes) {}
 
   public record EligibleStay(
       UUID reservationId,

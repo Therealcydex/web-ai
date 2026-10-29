@@ -69,6 +69,18 @@ class ReviewController {
     return reviews.createGuestReview(request);
   }
 
+  @PutMapping("/host/reviews/{id}/response")
+  ReviewService.ReviewView respond(
+      @PathVariable UUID id, @Valid @RequestBody ReviewService.HostResponse request) {
+    return reviews.respond(id, request);
+  }
+
+  @DeleteMapping("/host/reviews/{id}/response")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  void deleteResponse(@PathVariable UUID id) {
+    reviews.deleteResponse(id);
+  }
+
   @PostMapping("/reviews")
   @ResponseStatus(HttpStatus.CREATED)
   ReviewService.ReviewView create(@Valid @RequestBody ReviewService.CreateReview request) {

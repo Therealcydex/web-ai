@@ -38,4 +38,17 @@ describe('ReviewApiService', () => {
     remove.flush(null);
     await deletion;
   });
+  it('publishes and removes a host response on the host review resource', async () => {
+    const respond = service.respond('review-id', 'Thank you for staying.');
+    const put = http.expectOne('/api/host/reviews/review-id/response');
+    expect(put.request.method).toBe('PUT');
+    expect(put.request.body).toEqual({ body: 'Thank you for staying.' });
+    put.flush({ id: 'review-id', response: 'Thank you for staying.' });
+    expect((await respond).response).toBe('Thank you for staying.');
+    const removal = service.deleteResponse('review-id');
+    const remove = http.expectOne('/api/host/reviews/review-id/response');
+    expect(remove.request.method).toBe('DELETE');
+    remove.flush(null);
+    await removal;
+  });
 });
